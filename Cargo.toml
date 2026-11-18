@@ -1,0 +1,16 @@
+[package]
+name = "fquality"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+crossbeam-channel = "0.5.16"
+fs-err = "3.3.2"
+getopts-macro = "0.2.3"
+lz4_flex = { version = "=0.14.2", default-features = false, features = ["std", "frame"] }
+walkdir = "2.5.0"
+window-sort-iterator = "0.1.0"
+
+[profile.release]
+lto = true
+codegen-units = 1
