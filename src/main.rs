@@ -1,4 +1,4 @@
-use std::{io::Read, iter, path::PathBuf, process::exit, sync::{Arc, atomic::AtomicUsize, mpsc}, thread};
+use std::{io::Read, iter, path::PathBuf, process::exit, sync::{Arc, mpsc}, thread};
 
 use fs_err::File;
 use lz4_flex::block;
@@ -39,13 +39,14 @@ fn main() {
                     .filter(|entry| entry.file_type().is_file())
                     .map(|it| it.into_path())
             })
+                .enumerate()
                 .for_each(|path| send_files.send(path).unwrap());
         });
     } else {
         let files = std::mem::take(&mut matches.free);
         thread::spawn(move || {
-            for path in files {
-                send_files.send(path.into()).unwrap();
+            for path in files.into_iter().map(Into::into).enumerate() {
+                send_files.send(path).unwrap();
             }
         });
     }
@@ -53,7 +54,6 @@ fn main() {
     let (send_processed, processed) = mpsc::channel();
     let send_processed = Arc::new(send_processed);
 
-    let cur = AtomicUsize::new(0);
     thread::scope(|scope| {
         for _ in 0..jobs_limit {
             let sender = send_processed.clone();
@@ -61,8 +61,7 @@ fn main() {
                 let input = &mut Vec::new();
                 let output = &mut Vec::new();
                 loop {
-                    let cur = cur.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    let Ok(path) = files.recv() else { break };
+                    let Ok((cur, path)) = files.recv() else { break };
 
                     let mut file = match File::open(&path) {
                         Ok(file) => file,
